@@ -32,8 +32,7 @@ func NewProductManager(table string, db *sql.DB) IProduct {
 // 数据库连接
 func (p *ProductManager) Conn() error {
 	if p.mysqlConn == nil {
-		mysql := common.DBConn()
-		p.mysqlConn = mysql
+		p.mysqlConn = common.DBConn()
 	}
 	if p.table == "" {
 		p.table = "product"

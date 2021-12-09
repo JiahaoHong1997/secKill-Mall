@@ -20,7 +20,7 @@ func init() { // 实例化
 	productService = service.NewProductService(productRepository)
 }
 
-func GetAllHandler(c *gin.Context) {
+func GetAllProduct(c *gin.Context) {
 	productArray, _ := productService.GetAllProduct()
 
 	c.HTML(http.StatusOK, "view.tmpl", gin.H{
@@ -54,12 +54,11 @@ func UpdateProductInfo(c *gin.Context) {
 	if err := dec.Decode(c.Request.Form, product); err != nil {
 		log.Printf("product UpdateProductInfo: Failed to decode the form: %s", err)
 	}
-	log.Println(c.Request.Form)
 	err := productService.UpdateProduct(product)
 	if err != nil {
 		log.Printf("product: Failed to update to product: %s", err)
 	}
-	c.Redirect(http.StatusMovedPermanently, "all")	// 重定向
+	c.Redirect(http.StatusMovedPermanently, "all") // 重定向
 
 }
 
