@@ -1,3 +1,2 @@
 # Auto detect text files and perform LF normalization
-*.cs linguist-language=go
-*.ico linguist-language=go
+*.js lingist-language=Go
