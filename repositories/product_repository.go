@@ -45,11 +45,12 @@ func (p *ProductManager) Conn() error {
 func (p *ProductManager) Insert(product *datamodels.Product) (productId int64, err error) {
 	// 1.判断连接是否存在
 	if err := p.Conn(); err != nil {
-		return
+		return 0, err
 	}
 	// 2.准备sql
-	sql := "INSERT product SET productName=?, productNum=?, ProductImage=?, productUrl=?"
+	sql := "INSERT product SET productName=?, productNum=?, productImage=?, productUrl=?"
 	stmt, err := p.mysqlConn.Prepare(sql)
+	defer stmt.Close()
 	if err != nil {
 		return 0, err
 	}
@@ -70,6 +71,7 @@ func (p *ProductManager) Delete(productId int64) bool {
 	// 2.准备sql
 	sql := "DELETE FROM product WHERE ID=?"
 	stmt, err := p.mysqlConn.Prepare(sql)
+	defer stmt.Close()
 	if err != nil {
 		return false
 	}
@@ -88,8 +90,9 @@ func (p *ProductManager) Update(product *datamodels.Product) error {
 		return err
 	}
 	// 2.准备sql
-	sql := "UPDATE product SET productName=?, productNum=?, productImage=?, productUrt=? where ID=" + strconv.FormatInt(product.ID, 10)
+	sql := "UPDATE product SET productName=?, productNum=?, productImage=?, productUrl=? where ID=" + strconv.FormatInt(product.ID, 10)
 	stmt, err := p.mysqlConn.Prepare(sql)
+	defer stmt.Close()
 	if err != nil {
 		return err
 	}
@@ -110,6 +113,7 @@ func (p *ProductManager) SelectByKey(productID int64) (*datamodels.Product, erro
 	// 2.查询sql
 	sql := "SELECT * FROM " + p.table + " WHERE ID=" + strconv.FormatInt(productID, 10)
 	row, err := p.mysqlConn.Query(sql)
+	defer row.Close()
 	if err != nil {
 		return &datamodels.Product{}, err
 	}
@@ -124,14 +128,13 @@ func (p *ProductManager) SelectByKey(productID int64) (*datamodels.Product, erro
 	return productResult, nil
 }
 
-// 查询所有
-func (p *ProductManager) SelectAll() ([]*datamodels.Product, error) {
-	// 1.判断连接是否存在
+//获取所有商品
+func (p *ProductManager) SelectAll() (productArray []*datamodels.Product, errProduct error) {
+	//1.判断连接是否存在
 	if err := p.Conn(); err != nil {
 		return nil, err
 	}
-
-	sql := "SELECT * FROM " + p.table
+	sql := "Select * from " + p.table
 	rows, err := p.mysqlConn.Query(sql)
 	defer rows.Close()
 	if err != nil {
@@ -143,13 +146,12 @@ func (p *ProductManager) SelectAll() ([]*datamodels.Product, error) {
 		return nil, nil
 	}
 
-	productResults := []*datamodels.Product{}
 	for _, v := range result {
 		product := &datamodels.Product{}
 		common.DataToStructByTagSql(v, product)
-		productResults = append(productResults, product)
+		productArray = append(productArray, product)
 	}
-	return productResults, nil
+	return
 }
 
 // 库存减一

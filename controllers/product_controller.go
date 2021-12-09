@@ -1,25 +1,94 @@
 package controllers
 
 import (
-	"github.com/JiahaoHong1997/altria-web"
+	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 	"seckill/common"
+	"seckill/datamodels"
 	"seckill/repositories"
 	"seckill/service"
+	"strconv"
 )
 
 var productRepository repositories.IProduct
 var productService service.IProductService
 
-func init() {
+func init() { // 实例化
 	db := common.DBConn()
 	productRepository = repositories.NewProductManager("product", db)
 	productService = service.NewProductService(productRepository)
 }
 
-func GetAllHandler(c *altria.Context) {
+func GetAllHandler(c *gin.Context) {
 	productArray, _ := productService.GetAllProduct()
-	c.HTML(http.StatusOK, "view.tmpl", altria.H{
+
+	c.HTML(http.StatusOK, "view.tmpl", gin.H{
 		"productArray": productArray,
 	})
+}
+
+func GetManager(c *gin.Context) {
+	idString := c.Query("id")
+	id, err := strconv.ParseInt(idString, 10, 16)
+	if err != nil {
+		log.Printf("product GetManager: Failed to transform to int type: %s", err)
+	}
+	product, err := productService.GetProductByID(id)
+	if err != nil {
+		log.Printf("product: Failed to get product id: %s", err)
+	}
+	c.HTML(http.StatusOK, "manager.tmpl", gin.H{
+		"product": product,
+	})
+}
+
+func GetAdd(c *gin.Context) {
+	c.HTML(http.StatusOK, "add.tmpl", nil)
+}
+
+func UpdateProductInfo(c *gin.Context) {
+	product := &datamodels.Product{}
+	c.Request.ParseForm()
+	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
+	if err := dec.Decode(c.Request.Form, product); err != nil {
+		log.Printf("product UpdateProductInfo: Failed to decode the form: %s", err)
+	}
+	log.Println(c.Request.Form)
+	err := productService.UpdateProduct(product)
+	if err != nil {
+		log.Printf("product: Failed to update to product: %s", err)
+	}
+	c.Redirect(http.StatusMovedPermanently, "all")
+
+}
+
+func AddProductInfo(c *gin.Context) {
+	product := &datamodels.Product{}
+	c.Request.ParseForm()
+	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
+	if err := dec.Decode(c.Request.Form, product); err != nil {
+		log.Printf("product AddProductInfo: Failed to decode the form: %s", err)
+	}
+	_, err := productService.InsertProduct(product)
+	if err != nil {
+		log.Printf("product: Failed to add product: %s", err)
+	}
+	c.Redirect(http.StatusMovedPermanently, "all")
+
+}
+
+func DeleteProductInfo(c *gin.Context) {
+	idString := c.Query("id")
+	id, err := strconv.ParseInt(idString, 10, 16)
+	if err != nil {
+		log.Printf("product DeleteProduct: Failed to transform to int type: %s", err)
+	}
+	isOk := productService.DeleteProductID(id)
+	if isOk {
+		log.Printf("删除商品成功，ID为：" + idString)
+	} else {
+		log.Printf("删除商品失败，ID为：" + idString)
+	}
+	c.Redirect(http.StatusMovedPermanently, "all")
 }
