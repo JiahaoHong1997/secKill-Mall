@@ -59,7 +59,7 @@ func UpdateProductInfo(c *gin.Context) {
 	if err != nil {
 		log.Printf("product: Failed to update to product: %s", err)
 	}
-	c.Redirect(http.StatusMovedPermanently, "all")
+	c.Redirect(http.StatusMovedPermanently, "all")	// 重定向
 
 }
 
