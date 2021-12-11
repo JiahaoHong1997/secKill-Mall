@@ -46,6 +46,10 @@ func ManageOrderByID(c *gin.Context) {
 	})
 }
 
+func GetOrderAdd(c *gin.Context) {
+	c.HTML(http.StatusOK, "addOrder.tmpl", nil)
+}
+
 func UpdateOrderInfo(c *gin.Context) {
 	order := &datamodels.Order{}
 	c.Request.ParseForm()
@@ -58,4 +62,34 @@ func UpdateOrderInfo(c *gin.Context) {
 		log.Printf("order UpdateOrderInfo: Failed to update to order: %s", err)
 	}
 	c.Redirect(http.StatusMovedPermanently, "all") // 重定向
+}
+
+func AddOrderInfo(c *gin.Context) {
+	order := &datamodels.Order{}
+	c.Request.ParseForm()
+	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
+	if err := dec.Decode(c.Request.Form, order); err != nil {
+		log.Printf("order AddOrderInfo: Failed to decode the form: %s", err)
+	}
+
+	_, err := orderService.InsertOrder(order)
+	if err != nil {
+		log.Printf("order AddOrderInfo: Failed to add product: %s", err)
+	}
+	c.Redirect(http.StatusMovedPermanently, "all")
+}
+
+func DeleteOrderInfo(c *gin.Context) {
+	idString := c.Query("id")
+	id, err := strconv.ParseInt(idString, 10, 16)
+	if err != nil {
+		log.Printf("order DeleteOrderInfo: Failed to transform to int type: %s", err)
+	}
+	isOk := orderService.DeleteOrderByID(id)
+	if isOk {
+		log.Printf("删除订单成功，ID为：" + idString)
+	} else {
+		log.Printf("删除订单失败，ID为：" + idString)
+	}
+	c.Redirect(http.StatusMovedPermanently, "all")
 }

@@ -43,7 +43,7 @@ func ManageProductByID(c *gin.Context) {
 	})
 }
 
-func GetAdd(c *gin.Context) {
+func GetProductAdd(c *gin.Context) {
 	c.HTML(http.StatusOK, "add.tmpl", nil)
 }
 
@@ -74,7 +74,6 @@ func AddProductInfo(c *gin.Context) {
 		log.Printf("product: Failed to add product: %s", err)
 	}
 	c.Redirect(http.StatusMovedPermanently, "all")
-
 }
 
 func DeleteProductInfo(c *gin.Context) {
