@@ -9,13 +9,13 @@ func main() {
 
 	r := gin.Default()
 	r.Use(gin.Recovery())
-	r.LoadHTMLGlob("templates/*")
+	r.LoadHTMLGlob("templates/**/*")
 	r.Static("/assets", "./static")
 
 	// 商品管理
 	productParty := r.Group("/product")
 	productParty.GET("/all", controllers.GetAllProduct)         // 获取所有商品信息
-	productParty.GET("/manager", controllers.GetManager)        // 商品管理
+	productParty.GET("/manager", controllers.ManageProductByID) // 商品管理
 	productParty.GET("/add", controllers.GetAdd)                // 商品添加页面
 	productParty.GET("/delete", controllers.DeleteProductInfo)  // 删除指定商品信息
 	productParty.POST("/update", controllers.UpdateProductInfo) // 修改指定商品信息
@@ -23,6 +23,9 @@ func main() {
 
 	// 订单管理
 	orderParty := r.Group("/order")
+	orderParty.GET("/all", controllers.GetAllOrder)         // 获取所有订单信息
+	orderParty.GET("/manager", controllers.ManageOrderByID) // 订单管理
+	orderParty.POST("/update", controllers.UpdateOrderInfo)
 
 	r.Run(":8080")
 }

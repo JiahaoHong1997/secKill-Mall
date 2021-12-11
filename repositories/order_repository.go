@@ -48,7 +48,7 @@ func (o *OrderManagerRepository) Insert(order *datamodels.Order) (int64, error) 
 	}
 
 	// 2.准备sql
-	sql := "INSERT " + o.table + " SET userID=?,productID=?,orderStatus=?"
+	sql := "INSERT `" + o.table + "` SET userID=?,productID=?,orderStatus=?"
 	stmt, err := o.mysqlConn.Prepare(sql)
 	defer stmt.Close()
 	if err != nil {
@@ -73,7 +73,7 @@ func (o *OrderManagerRepository) Delete(productID int64) bool {
 	}
 
 	// 2.准备sql
-	sql := "DELETE FROM " + o.table + " where ID=?"
+	sql := "DELETE FROM `" + o.table + "` where ID=?"
 	stmt, err := o.mysqlConn.Prepare(sql)
 	defer stmt.Close()
 	if err != nil {
@@ -99,7 +99,8 @@ func (o *OrderManagerRepository) Update(order *datamodels.Order) error {
 	}
 
 	// 2.准备sql
-	sql := "UPDATE " + o.table + " SET userID=?,productID=?,orderStatus=? where ID=?"
+	sql := "UPDATE `" + o.table + "` SET userID=?,productID=?,orderStatus=? where ID=?"
+	log.Println(sql)
 	stmt, err := o.mysqlConn.Prepare(sql)
 	defer stmt.Close()
 	if err != nil {
@@ -124,7 +125,8 @@ func (o *OrderManagerRepository) SelectByKey(productID int64) (*datamodels.Order
 	}
 
 	// 2.查询sql
-	sql := "SELECT * FROM " + o.table + " WHERE ID=" + strconv.FormatInt(productID, 10)
+	sql := "SELECT * FROM `" + o.table + "` WHERE ID=" + strconv.FormatInt(productID, 10)
+	log.Println(sql)
 	row, err := o.mysqlConn.Query(sql)
 	defer row.Close()
 	if err != nil {
@@ -152,7 +154,7 @@ func (o *OrderManagerRepository) SelectAll() ([]*datamodels.Order, error) {
 	}
 
 	// 2.查询sql
-	sql := "SELECT * FROM " + o.table
+	sql := "SELECT * FROM `" + o.table + "`"
 	rows, err := o.mysqlConn.Query(sql)
 	defer rows.Close()
 	if err != nil {
@@ -184,7 +186,7 @@ func (o *OrderManagerRepository) SelectAllWithInfo() (map[int]map[string]string,
 	}
 
 	// 2.准备sql
-	sql := "SELECT o.ID,p.productName,o.orderStatus FROM secKill.order as o left join product as p on o.productID=p.productID"
+	sql := "SELECT o.ID,o.userID,p.productName,o.orderStatus FROM secKill.order as o left join product as p on o.productID=p.ID"
 	rows, err := o.mysqlConn.Query(sql)
 	defer rows.Close()
 	if err != nil {

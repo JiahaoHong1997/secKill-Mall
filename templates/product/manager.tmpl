@@ -1,4 +1,4 @@
-<!-- templates/order.tmpl -->
+<!-- templates/manager.tmpl -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,8 +112,10 @@
                             </li>
                             <li class="parent"><a href="#"><i class="icon mdi mdi-face"></i><span>订单管理</span></a>
                                 <ul class="sub-menu">
-                                    <li><a href="/order">查看所有订单</a>
-                                    </li></li>
+                                    <li><a href="/order/all">查看所有订单</a>
+                                    </li>
+                                    <li><a href="/order/add">添加订单</a>
+                                    </li>
                                 </ul>
                             </li>
                             <li class="parent"><a href="#"><i class="icon mdi mdi-chart-donut"></i><span>商品管理</span></a>
@@ -134,40 +136,52 @@
 
     <div class="be-content">
         <div class="page-head">
-            <h2 class="page-head-title">订单管理</h2>
+            <h2 class="page-head-title">商品管理</h2>
+        
         </div>
+        
         <div class="main-content container-fluid">
             <div class="row">
-                <!--Responsive table-->
-                <div class="col-sm-12">
-                    <div class="panel panel-default panel-table">
-                        <div class="panel-heading">订单列表
-        
-                        </div>
+                <div class="col-md-12">
+                    <div class="panel panel-default panel-border-color panel-border-color-primary">
+                        <div class="panel-heading panel-heading-divider">商品详细<span class="panel-subtitle">可以修改商品详情</span></div>
                         <div class="panel-body">
-                            <div class="table-responsive noSwipe">
-                                <table class="table table-striped table-hover">
-                                    <thead>
-                                    <tr>
-                                        <th style="width:20%;">订单ID</th>
-                                        <th style="width:17%;">用户名称</th>
-                                        <th style="width:15%;">商品名称</th>
-                                        <th style="width:10%;">发货状态</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {{range $i, $v := .order}}
-                                    <tr>
-                                        <td class="user-avatar cell-detail user-info">{{$v.ID}}</td>
-                                        <td class="cell-detail"></td>
-                                        <td class="milestone"> {{$v.productName}}
-                                        </td>
-                                        <td class="cell-detail">{{ if eq $v.orderStatus "1"}} 已发货 {{else}} 未发货 {{end}}</td>
-                                    </tr>
-                                    {{end}}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <form action="/product/update" style="border-radius: 0px;" class="form-horizontal group-border-dashed" method="post" >
+                                <input type="text" name="ID" value="{{.product.ID}}" hidden>
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">商品名称</label>
+                                    <div class="col-sm-6">
+                                        <input type="text" class="form-control" name="ProductName" value="{{.product.ProductName}}">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">商品数量</label>
+                                    <div class="col-sm-6">
+                                        <input type="text" class="form-control" name="ProductNum" value="{{.product.ProductNum}}">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">商品图片地址</label>
+                                    <div class="col-sm-6">
+                                        <input type="text"   class="form-control" name="ProductImage" value="{{.product.ProductImage}}">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">商品访问链接</label>
+                                    <div class="col-sm-6">
+                                        <input type="text"   class="form-control" name="ProductUrl" value="{{.product.ProductUrl}}">
+                                    </div>
+                                </div>
+                                <div class="row xs-pt-15">
+                                    <div class="col-xs-6">
+                                        <p class="text-right">
+                                            <button type="submit" class="btn btn-space btn-primary">修改</button>
+                                            <button class="btn btn-space btn-default" type="reset">重置</button>
+                                        </p>
+                                    </div>
+                                </div>
+        
+                            </form>
                         </div>
                     </div>
                 </div>

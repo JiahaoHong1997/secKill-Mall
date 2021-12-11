@@ -28,11 +28,11 @@ func GetAllProduct(c *gin.Context) {
 	})
 }
 
-func GetManager(c *gin.Context) {
+func ManageProductByID(c *gin.Context) {
 	idString := c.Query("id")
 	id, err := strconv.ParseInt(idString, 10, 16)
 	if err != nil {
-		log.Printf("product GetManager: Failed to transform to int type: %s", err)
+		log.Printf("product ManageProductByID: Failed to transform to int type: %s", err)
 	}
 	product, err := productService.GetProductByID(id)
 	if err != nil {
