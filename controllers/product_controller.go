@@ -90,11 +90,7 @@ func DeleteProductInfo(c *gin.Context) {
 	if err != nil {
 		log.Printf("product DeleteProduct: Failed to transform to int type: %s", err)
 	}
-	isOk, err := productService.DeleteProductID(id)
-	if err != nil {
-		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
-		log.Printf("stack trace:%+v", err)
-	}
+	isOk, _ := productService.DeleteProductID(id)
 	if isOk {
 		log.Printf("删除商品成功，ID为：" + idString)
 	} else {

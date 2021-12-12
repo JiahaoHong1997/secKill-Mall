@@ -90,11 +90,7 @@ func DeleteOrderInfo(c *gin.Context) {
 	if err != nil {
 		log.Printf("order DeleteOrderInfo: Failed to transform to int type: %s", err)
 	}
-	isOk, err := orderService.DeleteOrderByID(id)
-	if err != nil {
-		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
-		log.Printf("stack trace:%+v", err)
-	}
+	isOk, _ := orderService.DeleteOrderByID(id)
 	if isOk {
 		log.Printf("删除订单成功，ID为：" + idString)
 	} else {
