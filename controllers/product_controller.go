@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"seckill/common"
@@ -21,7 +22,11 @@ func init() { // 实例化
 }
 
 func GetAllProduct(c *gin.Context) {
-	productArray, _ := productService.GetAllProduct()
+	productArray, err := productService.GetAllProduct()
+	if err != nil {
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
+	}
 
 	c.HTML(http.StatusOK, "view.tmpl", gin.H{
 		"productArray": productArray,
@@ -36,7 +41,8 @@ func ManageProductByID(c *gin.Context) {
 	}
 	product, err := productService.GetProductByID(id)
 	if err != nil {
-		log.Printf("product: Failed to get product id: %s", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 	c.HTML(http.StatusOK, "manager.tmpl", gin.H{
 		"product": product,
@@ -56,7 +62,8 @@ func UpdateProductInfo(c *gin.Context) {
 	}
 	err := productService.UpdateProduct(product)
 	if err != nil {
-		log.Printf("product: Failed to update to product: %s", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 	c.Redirect(http.StatusMovedPermanently, "all") // 重定向
 
@@ -71,7 +78,8 @@ func AddProductInfo(c *gin.Context) {
 	}
 	_, err := productService.InsertProduct(product)
 	if err != nil {
-		log.Printf("product: Failed to add product: %s", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 	c.Redirect(http.StatusMovedPermanently, "all")
 }
@@ -82,7 +90,11 @@ func DeleteProductInfo(c *gin.Context) {
 	if err != nil {
 		log.Printf("product DeleteProduct: Failed to transform to int type: %s", err)
 	}
-	isOk := productService.DeleteProductID(id)
+	isOk, err := productService.DeleteProductID(id)
+	if err != nil {
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
+	}
 	if isOk {
 		log.Printf("删除商品成功，ID为：" + idString)
 	} else {

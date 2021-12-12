@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"seckill/common"
@@ -23,7 +24,8 @@ func init() {
 func GetAllOrder(c *gin.Context) {
 	orderArray, err := orderService.GetAllOrderInfo()
 	if err != nil {
-		log.Printf("order controller: failed to query all order information, %v", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 
 	c.HTML(http.StatusOK, "viewOrder.tmpl", gin.H{
@@ -39,7 +41,8 @@ func ManageOrderByID(c *gin.Context) {
 	}
 	order, err := orderService.GetOrderByID(id)
 	if err != nil {
-		log.Printf("order ManageOrderByID: Failed to get order id: %s", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 	c.HTML(http.StatusOK, "managerOrder.tmpl", gin.H{
 		"order": order,
@@ -59,7 +62,8 @@ func UpdateOrderInfo(c *gin.Context) {
 	}
 	err := orderService.UpdateOrder(order)
 	if err != nil {
-		log.Printf("order UpdateOrderInfo: Failed to update to order: %s", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 	c.Redirect(http.StatusMovedPermanently, "all") // 重定向
 }
@@ -74,7 +78,8 @@ func AddOrderInfo(c *gin.Context) {
 
 	_, err := orderService.InsertOrder(order)
 	if err != nil {
-		log.Printf("order AddOrderInfo: Failed to add product: %s", err)
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
 	}
 	c.Redirect(http.StatusMovedPermanently, "all")
 }
@@ -85,7 +90,11 @@ func DeleteOrderInfo(c *gin.Context) {
 	if err != nil {
 		log.Printf("order DeleteOrderInfo: Failed to transform to int type: %s", err)
 	}
-	isOk := orderService.DeleteOrderByID(id)
+	isOk, err := orderService.DeleteOrderByID(id)
+	if err != nil {
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
+	}
 	if isOk {
 		log.Printf("删除订单成功，ID为：" + idString)
 	} else {

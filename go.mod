@@ -3,9 +3,9 @@ module seckill
 go 1.17
 
 require (
-	github.com/JiahaoHong1997/altria-web v0.0.0-20211208160411-4b378447edd4
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/pkg/errors v0.9.1
 )
 
 require (

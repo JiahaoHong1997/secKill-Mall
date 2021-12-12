@@ -8,7 +8,7 @@ import (
 type IProductService interface {
 	GetProductByID(int64) (*datamodels.Product, error)
 	GetAllProduct() ([]*datamodels.Product, error)
-	DeleteProductID(int64) bool
+	DeleteProductID(int64) (bool, error)
 	InsertProduct(*datamodels.Product) (int64, error)
 	UpdateProduct(*datamodels.Product) error
 }
@@ -29,7 +29,7 @@ func (p *ProductService) GetAllProduct() ([]*datamodels.Product, error) {
 	return p.productRepository.SelectAll()
 }
 
-func (p *ProductService) DeleteProductID(productID int64) bool {
+func (p *ProductService) DeleteProductID(productID int64) (bool, error) {
 	return p.productRepository.Delete(productID)
 }
 

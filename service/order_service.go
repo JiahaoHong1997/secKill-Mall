@@ -7,7 +7,7 @@ import (
 
 type IOrderService interface {
 	GetOrderByID(int64) (*datamodels.Order, error)
-	DeleteOrderByID(int64) bool
+	DeleteOrderByID(int64) (bool, error)
 	UpdateOrder(*datamodels.Order) error
 	InsertOrder(*datamodels.Order) (int64, error)
 	GetAllOrder() ([]*datamodels.Order, error)
@@ -26,9 +26,8 @@ func (o *OrderService) GetOrderByID(orderID int64) (*datamodels.Order, error) {
 	return o.OrderRepository.SelectByKey(orderID)
 }
 
-func (o *OrderService) DeleteOrderByID(productID int64) (isOk bool) {
-	isOk = o.OrderRepository.Delete(productID)
-	return
+func (o *OrderService) DeleteOrderByID(productID int64) (bool, error) {
+	return o.OrderRepository.Delete(productID)
 }
 
 func (o *OrderService) UpdateOrder(order *datamodels.Order) error {
