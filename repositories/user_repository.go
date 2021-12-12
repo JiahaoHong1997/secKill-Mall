@@ -61,14 +61,14 @@ func (u *UserManagerRepository) Select(userName string) (*datamodels.User, error
 func (u *UserManagerRepository) Insert(user *datamodels.User) (int64, error) {
 	u.Conn()
 
-	sql := "INSERT `" + u.table + "` SET nickName=?,userName=?,passWord=?"
+	sql := "INSERT `" + u.table + "` SET nickName=?,userName=?,passWord=?,userIp=?"
 	stmt, err := u.mysqlConn.Prepare(sql)
 	if err != nil {
 		return 0, errors.Wrap(err, "user_repository#Insert: sql prepare failed")
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(user.NickName, user.UserName, user.HashPassword)
+	result, err := stmt.Exec(user.NickName, user.UserName, user.HashPassword, user.UserIp)
 	if err != nil {
 		return 0, errors.Wrap(err, "user_repository#Insert: insert failed")
 	}
@@ -79,7 +79,7 @@ func (u *UserManagerRepository) Insert(user *datamodels.User) (int64, error) {
 func (u *UserManagerRepository) user_repository(userId int64) (*datamodels.User, error) {
 	u.Conn()
 
-	sql := "SELECT * FROM `" + u.table + "` WHERE ID=" + strconv.FormatInt(userId,10)
+	sql := "SELECT * FROM `" + u.table + "` WHERE ID=" + strconv.FormatInt(userId, 10)
 	row, err := u.mysqlConn.Query(sql)
 	if err != nil {
 		return &datamodels.User{}, errors.Wrap(err, "user_repository#user_repository: query failed")
