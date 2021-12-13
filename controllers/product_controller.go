@@ -14,87 +14,79 @@ import (
 
 var productRepository repositories.IProduct
 var productService service.IProductService
+var orderRepository repositories.IOrderRepository
+var orderService service.IOrderService
 
-func init() { // 实例化
+func init() {
 	db := common.DBConn()
 	productRepository = repositories.NewProductManager("product", db)
 	productService = service.NewProductService(productRepository)
+	orderRepository = repositories.NewOrderManagerRepository("order", db)
+	orderService = service.NewOrderService(orderRepository)
 }
 
-func GetAllProduct(c *gin.Context) {
-	productArray, err := productService.GetAllProduct()
+// 秒杀页面
+func GetDetail(c *gin.Context) {
+	product, err := productService.GetProductByID(1)
 	if err != nil {
-		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
-		log.Printf("stack trace:%+v", err)
+		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace: %+v", err)
 	}
-
-	c.HTML(http.StatusOK, "view.tmpl", gin.H{
-		"productArray": productArray,
-	})
-}
-
-func ManageProductByID(c *gin.Context) {
-	idString := c.Query("id")
-	id, err := strconv.ParseInt(idString, 10, 16)
-	if err != nil {
-		log.Printf("product ManageProductByID: Failed to transform to int type: %s", err)
-	}
-	product, err := productService.GetProductByID(id)
-	if err != nil {
-		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
-		log.Printf("stack trace:%+v", err)
-	}
-	c.HTML(http.StatusOK, "manager.tmpl", gin.H{
+	c.HTML(http.StatusOK, "user_view.tmpl", gin.H{
 		"product": product,
 	})
 }
 
-func GetProductAdd(c *gin.Context) {
-	c.HTML(http.StatusOK, "add.tmpl", nil)
-}
-
-func UpdateProductInfo(c *gin.Context) {
-	product := &datamodels.Product{}
-	c.Request.ParseForm()
-	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
-	if err := dec.Decode(c.Request.Form, product); err != nil {
-		log.Printf("product UpdateProductInfo: Failed to decode the form: %s", err)
-	}
-	err := productService.UpdateProduct(product)
+func GetOrder(c *gin.Context) {
+	productString := c.Query("productID")
+	userString, err := c.Cookie("uid")
 	if err != nil {
-		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
-		log.Printf("stack trace:%+v", err)
+		log.Println(errors.New("cookie false"))
 	}
-	c.Redirect(http.StatusMovedPermanently, "all") // 重定向
-
-}
-
-func AddProductInfo(c *gin.Context) {
-	product := &datamodels.Product{}
-	c.Request.ParseForm()
-	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
-	if err := dec.Decode(c.Request.Form, product); err != nil {
-		log.Printf("product AddProductInfo: Failed to decode the form: %s", err)
-	}
-	_, err := productService.InsertProduct(product)
+	productID, err := strconv.Atoi(productString)
 	if err != nil {
-		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
-		log.Printf("stack trace:%+v", err)
+		log.Println(errors.New("string false"))
 	}
-	c.Redirect(http.StatusMovedPermanently, "all")
-}
-
-func DeleteProductInfo(c *gin.Context) {
-	idString := c.Query("id")
-	id, err := strconv.ParseInt(idString, 10, 16)
+	product, err := productService.GetProductByID(int64(productID))
 	if err != nil {
-		log.Printf("product DeleteProduct: Failed to transform to int type: %s", err)
+		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace: %+v", err)
 	}
-	isOk, _ := productService.DeleteProductID(id)
-	if isOk {
-		log.Printf("删除商品成功，ID为：" + idString)
-	} else {
-		log.Printf("删除商品失败，ID为：" + idString)
+
+	var orderID int64
+	showMessage := "抢购失败"
+	// 判断商品数量是否满足需求
+	// TODO:高并发需求还未实现
+	if product.ProductNum > 0 {
+		// 扣除商品数量
+		product.ProductNum -= 1
+		err = productService.UpdateProduct(product)
+		if err != nil {
+			log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
+			log.Printf("stack trace: %+v", err)
+		}
+
+		// 创建订单
+		userID, err := strconv.Atoi(userString)
+		if err != nil {
+			log.Println("string false")
+		}
+		order := &datamodels.Order{
+			UserId:      int64(userID),
+			ProductId:   int64(productID),
+			OrderStatus: datamodels.OrderSuccess,
+		}
+
+		// 新建订单
+		orderID, err = orderService.InsertOrder(order)
+		if err != nil {
+			log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
+			log.Printf("stack trace: %+v", err)
+		}
+		showMessage = "抢购成功"
 	}
-	c.Redirect(http.StatusMovedPermanently, "all")
+	c.HTML(http.StatusOK, "result.tmpl", gin.H{
+		"showMessage": showMessage,
+		"orderID":     orderID,
+	})
 }

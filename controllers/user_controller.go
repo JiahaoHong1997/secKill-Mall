@@ -1,9 +1,7 @@
 package controllers
 
 import (
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"seckill/common"
 	"seckill/datamodels"
@@ -50,8 +48,7 @@ func PostRegister(c *gin.Context) {
 			break
 		}
 	}
-	log.Println(strings.Split(c.Request.Header.Get("X-Forwarded-For"), ","))
-	log.Println(ip)
+
 	user := &datamodels.User{
 		UserName:     userName,
 		NickName:     nikName,
@@ -78,11 +75,7 @@ func PostLogin(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/user/login")
 		return
 	}
-	session := sessions.Default(c)
-	session.Set(userName, user.HashPassword)
-	session.Save()
 	common.GlobalCookie(c, "uid", strconv.FormatInt(user.ID, 10), 30*60)
-	data, _ := c.Cookie("uid")
-	log.Println(data)
+
 	c.Redirect(http.StatusMovedPermanently, "/user/register")
 }
