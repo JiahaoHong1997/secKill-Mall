@@ -27,7 +27,12 @@ func init() {
 
 // 秒杀页面
 func GetDetail(c *gin.Context) {
-	product, err := productService.GetProductByID(1)
+	productString := c.Query("productID")
+	productID, err := strconv.Atoi(productString)
+	if err != nil {
+		log.Println(err)
+	}
+	product, err := productService.GetProductByID(int64(productID))
 	if err != nil {
 		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
 		log.Printf("stack trace: %+v", err)
