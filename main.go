@@ -18,7 +18,7 @@ func WaitForShutdown() {
 	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	select {
 	case sig := <-signals:
-		fmt.Printf("get signal %s, application will shutdown\n", sig)
+		fmt.Printf("\nget signal %s, application will shutdown\n", sig)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		fmt.Println("serve will shutdown after 5 seconds!")
