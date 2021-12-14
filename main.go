@@ -1,11 +1,31 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"os"
+	"os/signal"
 	"seckill/controllers"
 	"seckill/controllers/manage"
 	"seckill/middleware"
+	"syscall"
+	"time"
 )
+
+func WaitForShutdown() {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	select {
+	case sig := <-signals:
+		fmt.Printf("get signal %s, application will shutdown\n", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		fmt.Println("serve will shutdown after 5 seconds!")
+		<-ctx.Done()
+		os.Exit(0)
+	}
+}
 
 func main() {
 
@@ -48,5 +68,10 @@ func main() {
 	userProductParty.GET("/detail", controllers.GetDetail)
 	userProductParty.GET("/order", controllers.GetOrder)
 
-	r.Run(":8080")
+	go func() {
+		r.Run(":8080")
+	}()
+
+	fmt.Println(11)
+	WaitForShutdown()
 }
