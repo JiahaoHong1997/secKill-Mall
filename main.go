@@ -72,6 +72,5 @@ func main() {
 		r.Run(":8080")
 	}()
 
-	fmt.Println(11)
 	WaitForShutdown()
 }
