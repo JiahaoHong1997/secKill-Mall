@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+	"log"
 	"net/http"
 	"seckill/common"
 	"seckill/datamodels"
@@ -65,17 +67,27 @@ func PostRegister(c *gin.Context) {
 }
 
 func PostLogin(c *gin.Context) {
+	// 1.获取表单信息
 	var (
 		userName = c.PostForm("userName")
 		password = c.PostForm("password")
 	)
 
+	// 2.验证账号密码
 	user, isOk, _ := userService.IsPwdSuccess(userName, password)
 	if !isOk {
 		c.Redirect(http.StatusMovedPermanently, "/user/login")
 		return
 	}
-	common.GlobalCookie(c, "uid", strconv.FormatInt(user.ID, 10), 30*60)
+	// 3.写入用户ID到 cookie 中
+	c.SetCookie("uid", strconv.FormatInt(user.ID, 10), 30*60, "/", "127.0.0.1", false, true)
+	uidByte := []byte(strconv.FormatInt(user.ID, 10))
+	uidString, err := common.EnPwdCode(uidByte)
+	if err != nil {
+		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace: %+v", err)
+	}
+	c.SetCookie("sign", uidString, 30*60, "/", "127.0.0.1", false, true)
 
-	c.Redirect(http.StatusMovedPermanently, "/user/register")
+	c.Redirect(http.StatusMovedPermanently, "/product/")
 }

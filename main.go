@@ -31,7 +31,7 @@ func main() {
 	orderParty.GET("/add", manage.GetOrderAdd)         // 订单添加页面
 	orderParty.GET("/delete", manage.DeleteOrderInfo)  // 删除指定订单信息
 	orderParty.POST("/update", manage.UpdateOrderInfo) // 修改指定订单信息
-	orderParty.POST("add", manage.AddOrderInfo)        // 新增订单信息
+	orderParty.POST("/add", manage.AddOrderInfo)       // 新增订单信息
 
 	// 前台用户登录注册功能
 	userParty := r.Group("/user")
