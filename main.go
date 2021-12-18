@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
+	"net/http"
 	"os"
 	"os/signal"
 	"seckill/controllers"
@@ -12,20 +15,6 @@ import (
 	"syscall"
 	"time"
 )
-
-func WaitForShutdown() {
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	select {
-	case sig := <-signals:
-		fmt.Printf("\nget signal %s, application will shutdown\n", sig)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		fmt.Println("serve will shutdown after 5 seconds!")
-		<-ctx.Done()
-		os.Exit(0)
-	}
-}
 
 func main() {
 
@@ -68,9 +57,49 @@ func main() {
 	userProductParty.GET("/detail", controllers.GetDetail)
 	userProductParty.GET("/order", controllers.GetOrder)
 
-	go func() {
-		r.Run(":8080")
-	}()
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
 
-	WaitForShutdown()
+	g, ctx := errgroup.WithContext(context.Background())
+	g.Go(func() error {
+		if err := server.ListenAndServe(); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		<-ctx.Done()
+		fmt.Println("http server will stop in 5 seconds!")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := server.Shutdown(shutdownCtx)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return err
+	})
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	g.Go(func() error {
+
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case sig := <-signals:
+
+				err := errors.New("\nget signal " + sig.String() + ", application will shutdown\n")
+				fmt.Println(err)
+				return err
+			}
+		}
+	})
+
+	if err := g.Wait(); err != nil {
+		fmt.Println(err)
+	}
 }
