@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -57,6 +58,10 @@ func main() {
 	userProductParty.GET("/detail", controllers.GetDetail)
 	userProductParty.GET("/order", controllers.GetOrder)
 
+	serverOut := make(chan struct{}) // 访问 /shutdown，优雅退出
+	r.GET("/shutdown", func(c *gin.Context) {
+		serverOut <- struct{}{}
+	})
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
@@ -71,30 +76,28 @@ func main() {
 	})
 
 	g.Go(func() error {
-		<-ctx.Done()
-		fmt.Println("http server will stop in 5 seconds!")
+		select {
+		case <-ctx.Done():
+			log.Printf("errgroup exit...")
+		case <-serverOut:
+			log.Println("request `/shutdown`, http server will stop in 5 seconds!")
+		}
+
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		err := server.Shutdown(shutdownCtx)
-		if err != nil {
-			fmt.Println(err)
-		}
 		return err
 	})
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	g.Go(func() error {
-
+	g.Go(func() error { // CTRL + C，直接退出
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		for {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case sig := <-signals:
-
-				err := errors.New("\nget signal " + sig.String() + ", application will shutdown\n")
-				fmt.Println(err)
-				return err
+				return errors.New("\nget signal " + sig.String() + ", application will shutdown\n")
 			}
 		}
 	})
