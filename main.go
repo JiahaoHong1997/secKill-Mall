@@ -60,6 +60,7 @@ func main() {
 
 	serverOut := make(chan struct{}) // 访问 /shutdown，优雅退出
 	r.GET("/shutdown", func(c *gin.Context) {
+		c.String(200, "The http server will shutdown in 5 seconds!")
 		serverOut <- struct{}{}
 	})
 	server := &http.Server{
