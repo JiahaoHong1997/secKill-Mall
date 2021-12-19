@@ -9,6 +9,8 @@ var db *sql.DB
 
 func init() {
 	db, _ = sql.Open("mysql", "root:hjh1314lvwxy@tcp(127.0.0.1:3306)/secKill?charset=utf8")
+	db.SetMaxIdleConns(1000)
+	db.SetMaxOpenConns(1000)
 	db.SetConnMaxLifetime(1000)
 	err := db.Ping()
 	if err != nil {
