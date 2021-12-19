@@ -1,6 +1,9 @@
 package common
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // 声明一个新的数据类型（函数类型）
 type FilterHandler func(w http.ResponseWriter, r *http.Request) error
@@ -31,7 +34,7 @@ type WebHandle func(w http.ResponseWriter, r *http.Request)
 func (f *Filter) Handle(webHandle WebHandle) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		for path, handle := range f.filterMap {
-			if path == r.RequestURI {
+			if strings.Contains(r.RequestURI, path) {
 				// 执行拦截业务逻辑
 				err := handle(w, r)
 				if err != nil {
