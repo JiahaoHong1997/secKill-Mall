@@ -6,27 +6,28 @@ import (
 	"github.com/pkg/errors"
 	"log"
 	"net/http"
-	"seckill/common"
-	"seckill/datamodels"
-	rabbitmq "seckill/rabbitmq"
-	"seckill/repositories"
+	"seckill/common/rabbitmq"
+	"seckill/dao"
+	db2 "seckill/dao/db"
+	"seckill/models"
 	"seckill/service"
 	"strconv"
 )
 
-var productRepository repositories.IProduct
+var productRepository dao.IProduct
 var productService service.IProductService
-var orderRepository repositories.IOrderRepository
+var orderRepository dao.IOrderRepository
 var orderService service.IOrderService
-var rabbitMq *rabbitmq.RabbitMQ
+var rabbitMq *RabbitMQ.RabbitMQ
 
 func init() {
-	db := common.DBConn()
-	productRepository = repositories.NewProductManager("product", db)
+	db := db2.DBConn()
+	rdb := db2.NewRedisConn()
+	productRepository = dao.NewProductManager("product", db, rdb)
 	productService = service.NewProductService(productRepository)
-	orderRepository = repositories.NewOrderManagerRepository("order", db)
+	orderRepository = dao.NewOrderManagerRepository("order", db)
 	orderService = service.NewOrderService(orderRepository)
-	rabbitMq = rabbitmq.NewRabbitMQSimple("secKillProduct")
+	rabbitMq = RabbitMQ.NewRabbitMQSimple("secKillProduct")
 }
 
 // 秒杀页面
@@ -63,7 +64,7 @@ func GetOrder(c *gin.Context) {
 		log.Println(errors.New("string false"))
 	}
 
-	message := datamodels.NewMessage(userID, productID)
+	message := models.NewMessage(userID, productID)
 	byteMessage, err := json.Marshal(message)
 	if err != nil {
 		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
@@ -99,10 +100,10 @@ func GetOrder(c *gin.Context) {
 	//	if err != nil {
 	//		log.Println("string false")
 	//	}
-	//	order := &datamodels.Order{
+	//	order := &models.Order{
 	//		UserId:      int64(userID),
 	//		ProductId:   int64(productID),
-	//		OrderStatus: datamodels.OrderSuccess,
+	//		OrderStatus: models.OrderSuccess,
 	//	}
 	//
 	//	// 新建订单

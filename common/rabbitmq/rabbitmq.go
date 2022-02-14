@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"log"
-	"seckill/datamodels"
+	"seckill/models"
 	"seckill/service"
 	"sync"
 
@@ -134,7 +134,7 @@ func (r *RabbitMQ) ConsumeSimple(orderService service.IOrderService, productServ
 		for d := range msgs {
 			// 实现我们要处理的逻辑函数
 			log.Printf("Recieve a message: %s", d.Body)
-			message := &datamodels.Message{}
+			message := &models.Message{}
 			err := json.Unmarshal([]byte(d.Body), message)
 			if err != nil {
 				fmt.Println(err)

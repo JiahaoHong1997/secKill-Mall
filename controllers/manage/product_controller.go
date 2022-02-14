@@ -6,18 +6,20 @@ import (
 	"log"
 	"net/http"
 	"seckill/common"
-	"seckill/datamodels"
-	"seckill/repositories"
+	"seckill/dao"
+	db2 "seckill/dao/db"
+	"seckill/models"
 	"seckill/service"
 	"strconv"
 )
 
-var productRepository repositories.IProduct
+var productRepository dao.IProduct
 var productService service.IProductService
 
 func init() { // 实例化
-	db := common.DBConn()
-	productRepository = repositories.NewProductManager("product", db)
+	db := db2.DBConn()
+	rdb := db2.NewRedisConn()
+	productRepository = dao.NewProductManager("product", db, rdb)
 	productService = service.NewProductService(productRepository)
 }
 
@@ -54,7 +56,7 @@ func GetProductAdd(c *gin.Context) {
 }
 
 func UpdateProductInfo(c *gin.Context) {
-	product := &datamodels.Product{}
+	product := &models.Product{}
 	c.Request.ParseForm()
 	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
 	if err := dec.Decode(c.Request.Form, product); err != nil {
@@ -70,7 +72,7 @@ func UpdateProductInfo(c *gin.Context) {
 }
 
 func AddProductInfo(c *gin.Context) {
-	product := &datamodels.Product{}
+	product := &models.Product{}
 	c.Request.ParseForm()
 	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
 	if err := dec.Decode(c.Request.Form, product); err != nil {
@@ -95,6 +97,46 @@ func DeleteProductInfo(c *gin.Context) {
 		log.Printf("删除商品成功，ID为：" + idString)
 	} else {
 		log.Printf("删除商品失败，ID为：" + idString)
+	}
+	c.Redirect(http.StatusMovedPermanently, "all")
+}
+
+func GetProductAddSec(c *gin.Context) {
+	idString := c.Query("id")
+	id, err := strconv.ParseInt(idString, 10, 16)
+	if err != nil {
+		log.Printf("product ManageProductByID: Failed to transform to int type: %s", err)
+	}
+	product, err := productService.GetProductByID(id)
+	if err != nil {
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+		log.Printf("stack trace:%+v", err)
+	}
+	c.HTML(http.StatusOK, "addsec.tmpl", gin.H{
+		"product": product,
+	})
+}
+
+func AddProductSecInfo(c *gin.Context) {
+	c.Request.ParseForm()
+	productID := c.PostForm("ProductID")
+	id, err := strconv.ParseInt(productID, 10, 64)
+	if err != nil {
+		log.Printf("product AddProductSecInfo: Failed to transform to int type: %s", err)
+	}
+	productNum := c.PostForm("ProductNum")
+	num, err := strconv.ParseInt(productNum, 10, 64)
+	if err != nil {
+		log.Printf("product AddProductSecInfo: Failed to transform to int type: %s", err)
+	}
+	countDown := c.PostForm("Countdown")
+	duration, err := strconv.ParseFloat(countDown, 64)
+	if err != nil {
+		log.Printf("product AddProductSecInfo: Failed to transform to int type: %s", err)
+	}
+	err = productService.InsertSecProduct(id, num, duration)
+	if err != nil {
+		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
 	}
 	c.Redirect(http.StatusMovedPermanently, "all")
 }

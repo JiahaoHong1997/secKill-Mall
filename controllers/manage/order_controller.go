@@ -6,18 +6,19 @@ import (
 	"log"
 	"net/http"
 	"seckill/common"
-	"seckill/datamodels"
-	"seckill/repositories"
+	"seckill/dao"
+	db2 "seckill/dao/db"
+	"seckill/models"
 	"seckill/service"
 	"strconv"
 )
 
-var orderRepository repositories.IOrderRepository
+var orderRepository dao.IOrderRepository
 var orderService service.IOrderService
 
 func init() {
-	db := common.DBConn()
-	orderRepository = repositories.NewOrderManagerRepository("order", db)
+	db := db2.DBConn()
+	orderRepository = dao.NewOrderManagerRepository("order", db)
 	orderService = service.NewOrderService(orderRepository)
 }
 
@@ -54,7 +55,7 @@ func GetOrderAdd(c *gin.Context) {
 }
 
 func UpdateOrderInfo(c *gin.Context) {
-	order := &datamodels.Order{}
+	order := &models.Order{}
 	c.Request.ParseForm()
 	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
 	if err := dec.Decode(c.Request.Form, order); err != nil {
@@ -69,7 +70,7 @@ func UpdateOrderInfo(c *gin.Context) {
 }
 
 func AddOrderInfo(c *gin.Context) {
-	order := &datamodels.Order{}
+	order := &models.Order{}
 	c.Request.ParseForm()
 	dec := common.NewDecoder(&common.DecoderOptions{TagName: "secKillSystem"})
 	if err := dec.Decode(c.Request.Form, order); err != nil {

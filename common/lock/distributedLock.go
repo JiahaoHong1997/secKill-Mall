@@ -1,8 +1,9 @@
-package common
+package lock
 
 import (
+	"context"
 	"fmt"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
 	"log"
 	"runtime"
@@ -19,6 +20,7 @@ var (
 
 type RedisPool struct {
 	Rdb      *redis.Client
+	Ctx      context.Context
 	LockKey  string
 	UnlockCh chan struct{}
 }
@@ -32,7 +34,8 @@ func init() {
 		PoolSize: 100,
 	})
 
-	_, err := rdb.Ping().Result()
+	ctx := context.Background()
+	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -41,6 +44,7 @@ func init() {
 func NewRedisPool() *RedisPool {
 	return &RedisPool{
 		Rdb:      rdb,
+		Ctx:      context.Background(),
 		LockKey:  lockKey,
 		UnlockCh: unlockCh,
 	}
@@ -71,10 +75,10 @@ func (r *RedisPool) Lock() {
 			log.Printf("original error: %T, %v", errors.Cause(err), errors.Cause(err))
 			return
 		}
-		resp = r.Rdb.SetNX(r.LockKey, goId, 10*time.Second)
+		resp = r.Rdb.SetNX(r.Ctx, r.LockKey, goId, 10*time.Second)
 		lockSuccess, err := resp.Result()
 		if err == nil && lockSuccess {
-			fmt.Println("lock success!", goId)
+			//fmt.Println("lock success!", goId)
 			//抢锁成功，开启看门狗 并跳出，否则失败继续自旋
 			go r.WatchDog(goId)
 			return
@@ -103,7 +107,7 @@ func (r *RedisPool) UnLock() {
 	}
 
 	// 在确认当前锁是自己的锁之后，删除锁之前，这段时间内，锁可能会恰巧过期释放且被其他竞争者抢占，那么继续删除则删除的是别人的锁，会出现误删问题。
-	resp := script.Run(r.Rdb, []string{r.LockKey}, goId)
+	resp := script.Run(r.Ctx, r.Rdb, []string{r.LockKey}, goId)
 	if result, err := resp.Result(); err != nil || result == 0 {
 		fmt.Println("unlock failed!", err)
 	} else {
@@ -129,7 +133,7 @@ func (r *RedisPool) WatchDog(goId int) {
 	for {
 		select {
 		case <-expTicker.C:
-			resp := script.Run(r.Rdb, []string{r.LockKey}, goId, 10)
+			resp := script.Run(r.Ctx, r.Rdb, []string{r.LockKey}, goId, 10)
 			if result, err := resp.Result(); err != nil || result == int64(0) {
 				log.Println("expire lock failed", err)
 			}

@@ -1,4 +1,4 @@
-package datamodels
+package models
 
 type Order struct {
 	ID          int64 `sql:"ID" secKillSystem:"ID"`

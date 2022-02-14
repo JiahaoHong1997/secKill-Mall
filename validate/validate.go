@@ -9,8 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"seckill/common"
-	"seckill/datamodels"
-	rabbitmq "seckill/rabbitmq"
+	"seckill/common/encrypt"
+	"seckill/common/rabbitmq"
+	"seckill/models"
 	"strconv"
 	"sync"
 )
@@ -28,7 +29,7 @@ var (
 	port = "8083"
 
 	hashConsistent   *common.Consistent
-	rabbitMqValidate *rabbitmq.RabbitMQ
+	rabbitMqValidate *RabbitMQ.RabbitMQ
 	accessControl    = &AccessControl{sourceArray: make(map[int]interface{})}
 )
 
@@ -175,7 +176,7 @@ func CheckUserInfo(r *http.Request) error {
 	}
 
 	val, _ := url.QueryUnescape(signCookie.Value)
-	signByte, err := common.DePwdCode(val)
+	signByte, err := encrypt.DePwdCode(val)
 	if err != nil {
 		return errors.New("加密串已被串改")
 	}
@@ -197,6 +198,7 @@ func CheckRight(w http.ResponseWriter, r *http.Request) {
 	right := accessControl.GetDistributedRight(r)
 	if !right {
 		w.Write([]byte("false"))
+		w.WriteHeader(501)
 		return
 	}
 	w.Write([]byte("true"))
@@ -249,7 +251,7 @@ func Check(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			message := datamodels.NewMessage(userID, productID)
+			message := models.NewMessage(userID, productID)
 			byteMessage, err := json.Marshal(message)
 			if err != nil {
 				w.Write([]byte("false"))
@@ -283,7 +285,7 @@ func main() {
 	}
 	fmt.Println(localIp)
 
-	rabbitMqValidate = rabbitmq.NewRabbitMQSimple("secKillProduct")
+	rabbitMqValidate = RabbitMQ.NewRabbitMQSimple("secKillProduct")
 	defer rabbitMqValidate.Destory()
 
 	// 1.过滤器

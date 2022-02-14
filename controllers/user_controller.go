@@ -5,20 +5,21 @@ import (
 	"github.com/pkg/errors"
 	"log"
 	"net/http"
-	"seckill/common"
-	"seckill/datamodels"
-	"seckill/repositories"
+	"seckill/common/encrypt"
+	"seckill/dao"
+	db2 "seckill/dao/db"
+	"seckill/models"
 	"seckill/service"
 	"strconv"
 	"strings"
 )
 
-var userRepository repositories.IUserRepository
+var userRepository dao.IUserRepository
 var userService service.IUserService
 
 func init() {
-	db := common.DBConn()
-	userRepository = repositories.NewUserRepository("user", db)
+	db := db2.DBConn()
+	userRepository = dao.NewUserRepository("user", db)
 	userService = service.NewUserService(userRepository)
 }
 
@@ -51,7 +52,7 @@ func PostRegister(c *gin.Context) {
 		}
 	}
 
-	user := &datamodels.User{
+	user := &models.User{
 		UserName:     userName,
 		NickName:     nikName,
 		HashPassword: password,
@@ -82,7 +83,7 @@ func PostLogin(c *gin.Context) {
 	// 3.写入用户ID到 cookie 中
 	c.SetCookie("uid", strconv.FormatInt(user.ID, 10), 30*60, "/", "127.0.0.1", false, true)
 	uidByte := []byte(strconv.FormatInt(user.ID, 10))
-	uidString, err := common.EnPwdCode(uidByte)
+	uidString, err := encrypt.EnPwdCode(uidByte)
 	if err != nil {
 		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
 		log.Printf("stack trace: %+v", err)

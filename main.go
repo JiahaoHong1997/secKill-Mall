@@ -29,11 +29,13 @@ func main() {
 	// 商品管理
 	productParty := manageParty.Group("/product")
 	productParty.GET("/all", manage.GetAllProduct)         // 获取所有商品信息
-	productParty.GET("/manager", manage.ManageProductByID) // 商品管理
+	productParty.GET("/info", manage.ManageProductByID) // 商品管理
 	productParty.GET("/add", manage.GetProductAdd)         // 商品添加页面
 	productParty.GET("/delete", manage.DeleteProductInfo)  // 删除指定商品信息
 	productParty.POST("/update", manage.UpdateProductInfo) // 修改指定商品信息
 	productParty.POST("/add", manage.AddProductInfo)       // 新增商品信息
+	productParty.GET("/addsec", manage.GetProductAddSec)   // 获取加入秒杀页面
+	productParty.POST("/updatesec", manage.AddProductSecInfo) // 加入指定商品到秒杀池
 	// 订单管理
 	orderParty := manageParty.Group("/order")
 	orderParty.GET("/all", manage.GetAllOrder)         // 获取所有订单信息

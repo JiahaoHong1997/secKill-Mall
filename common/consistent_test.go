@@ -1,6 +1,8 @@
 package common
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestConsistent_Add(t *testing.T) {
 	hostArray := []string{

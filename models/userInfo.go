@@ -1,4 +1,4 @@
-package datamodels
+package models
 
 type UserInfo struct {
 	ID         int64  `json:"id" form:"ID" sql:"ID"`

@@ -1,4 +1,4 @@
-package datamodels
+package models
 
 // 定义简单消息体
 type Message struct {

@@ -1,21 +1,22 @@
-package repositories
+package dao
 
 import (
 	"database/sql"
 	"github.com/pkg/errors"
 	"log"
 	"seckill/common"
-	"seckill/datamodels"
+	"seckill/dao/db"
+	"seckill/models"
 	"strconv"
 )
 
 type IOrderRepository interface {
 	Conn()
-	Insert(*datamodels.Order) (int64, error)
+	Insert(*models.Order) (int64, error)
 	Delete(int64) (bool, error)
-	Update(*datamodels.Order) error
-	SelectByKey(int64) (*datamodels.Order, error)
-	SelectAll() ([]*datamodels.Order, error)
+	Update(*models.Order) error
+	SelectByKey(int64) (*models.Order, error)
+	SelectAll() ([]*models.Order, error)
 	SelectAllWithInfo() (map[int]map[string]string, error)
 }
 
@@ -33,14 +34,14 @@ func NewOrderManagerRepository(table string, sql *sql.DB) IOrderRepository {
 
 func (o *OrderManagerRepository) Conn() {
 	if o.mysqlConn == nil {
-		o.mysqlConn = common.DBConn()
+		o.mysqlConn = db.DBConn()
 	}
 	if o.table == "" {
 		o.table = "order"
 	}
 }
 
-func (o *OrderManagerRepository) Insert(order *datamodels.Order) (int64, error) {
+func (o *OrderManagerRepository) Insert(order *models.Order) (int64, error) {
 	// 1.判断连接是否存在
 	o.Conn()
 
@@ -81,7 +82,7 @@ func (o *OrderManagerRepository) Delete(productID int64) (bool, error) {
 	return true, nil
 }
 
-func (o *OrderManagerRepository) Update(order *datamodels.Order) error {
+func (o *OrderManagerRepository) Update(order *models.Order) error {
 	// 1.判断连接是否存在
 	o.Conn()
 
@@ -101,7 +102,7 @@ func (o *OrderManagerRepository) Update(order *datamodels.Order) error {
 	return nil
 }
 
-func (o *OrderManagerRepository) SelectByKey(productID int64) (*datamodels.Order, error) {
+func (o *OrderManagerRepository) SelectByKey(productID int64) (*models.Order, error) {
 	// 1.判断连接是否存在
 	o.Conn()
 
@@ -109,23 +110,23 @@ func (o *OrderManagerRepository) SelectByKey(productID int64) (*datamodels.Order
 	sql := "SELECT * FROM `" + o.table + "` WHERE ID=" + strconv.FormatInt(productID, 10)
 	row, err := o.mysqlConn.Query(sql)
 	if err != nil {
-		return &datamodels.Order{}, errors.Wrap(err, "Order#SelectById: query failed")
+		return &models.Order{}, errors.Wrap(err, "Order#SelectById: query failed")
 	}
 	defer row.Close()
 
 	// 3.获取首行的查询结果
-	result := common.GetResultRow(row)
+	result := db.GetResultRow(row)
 	if len(result) == 0 {
 		log.Println("Order:SelectByKey, no info got\n")
-		return &datamodels.Order{}, errors.New("Order#SelectById: not found")
+		return &models.Order{}, errors.New("Order#SelectById: not found")
 	}
 
-	orderResult := &datamodels.Order{}
+	orderResult := &models.Order{}
 	common.DataToStructByTagSql(result, orderResult)
 	return orderResult, nil
 }
 
-func (o *OrderManagerRepository) SelectAll() ([]*datamodels.Order, error) {
+func (o *OrderManagerRepository) SelectAll() ([]*models.Order, error) {
 	// 1.判断连接是否正常
 	o.Conn()
 
@@ -138,14 +139,14 @@ func (o *OrderManagerRepository) SelectAll() ([]*datamodels.Order, error) {
 	defer rows.Close()
 
 	// 3. 获取所有查询结果
-	result := common.GetResultRows(rows)
+	result := db.GetResultRows(rows)
 	if len(result) == 0 {
 		return nil, errors.New("Order#SelectAll: not found")
 	}
 
-	orderArray := []*datamodels.Order{}
+	orderArray := []*models.Order{}
 	for _, v := range result {
-		order := &datamodels.Order{}
+		order := &models.Order{}
 		common.DataToStructByTagSql(v, order)
 		orderArray = append(orderArray, order)
 	}
@@ -165,5 +166,5 @@ func (o *OrderManagerRepository) SelectAllWithInfo() (map[int]map[string]string,
 	defer rows.Close()
 
 	// 3. 获取所有查询结果
-	return common.GetResultRows(rows), nil
+	return db.GetResultRows(rows), nil
 }

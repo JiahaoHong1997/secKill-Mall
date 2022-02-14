@@ -1,47 +1,62 @@
-package repositories
+package dao
 
 import (
+	"context"
 	"database/sql"
+	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
+	"log"
 	"seckill/common"
-	"seckill/datamodels"
+	"seckill/dao/db"
+	"seckill/models"
 	"strconv"
+	"time"
 )
 
 type IProduct interface {
 	Conn()
-	Insert(*datamodels.Product) (int64, error)
+	Insert(*models.Product) (int64, error)
 	Delete(int64) (bool, error)
-	Update(*datamodels.Product) error
-	SelectByKey(int64) (*datamodels.Product, error)
-	SelectAll() ([]*datamodels.Product, error)
+	Update(*models.Product) error
+	SelectByKey(int64) (*models.Product, error)
+	SelectAll() ([]*models.Product, error)
 	SubProductNum(productID int64) error
+	AddSecProduct(productID int64, productNum int64, duration float64) error
 }
 
 type ProductManager struct {
 	table     string
 	mysqlConn *sql.DB
+	redisPool *redis.Client
 }
 
-func NewProductManager(table string, db *sql.DB) IProduct {
+func NewProductManager(table string, db *sql.DB, rdb *redis.Client) IProduct {
 	return &ProductManager{
 		table:     table,
 		mysqlConn: db,
+		redisPool: rdb,
 	}
 }
 
 // 数据库连接
 func (p *ProductManager) Conn() {
 	if p.mysqlConn == nil {
-		p.mysqlConn = common.DBConn()
+		p.mysqlConn = db.DBConn()
 	}
 	if p.table == "" {
 		p.table = "product"
 	}
 }
 
+// redis连接
+func (p *ProductManager) RedisConn() {
+	if p.redisPool == nil {
+		p.redisPool = db.NewRedisConn()
+	}
+}
+
 // 插入
-func (p *ProductManager) Insert(product *datamodels.Product) (productId int64, err error) {
+func (p *ProductManager) Insert(product *models.Product) (productId int64, err error) {
 	// 1.判断连接是否存在
 	p.Conn()
 
@@ -81,7 +96,7 @@ func (p *ProductManager) Delete(productId int64) (bool, error) {
 }
 
 // 修改
-func (p *ProductManager) Update(product *datamodels.Product) error {
+func (p *ProductManager) Update(product *models.Product) error {
 	// 1.判断连接是否存在
 	p.Conn()
 
@@ -101,7 +116,7 @@ func (p *ProductManager) Update(product *datamodels.Product) error {
 }
 
 // 查询
-func (p *ProductManager) SelectByKey(productID int64) (*datamodels.Product, error) {
+func (p *ProductManager) SelectByKey(productID int64) (*models.Product, error) {
 	// 1.判断连接是否存在
 	p.Conn()
 
@@ -109,22 +124,22 @@ func (p *ProductManager) SelectByKey(productID int64) (*datamodels.Product, erro
 	sql := "SELECT * FROM " + p.table + " WHERE ID=" + strconv.FormatInt(productID, 10)
 	row, err := p.mysqlConn.Query(sql)
 	if err != nil {
-		return &datamodels.Product{}, errors.Wrap(err, "product_repository#SelectByKey: query failed")
+		return &models.Product{}, errors.Wrap(err, "product_repository#SelectByKey: query failed")
 	}
 	defer row.Close()
 	// 获取查询结果的首行
-	result := common.GetResultRow(row)
+	result := db.GetResultRow(row)
 	if len(result) == 0 {
-		return &datamodels.Product{}, errors.New("product_repository#SelectByKey: not found")
+		return &models.Product{}, errors.New("product_repository#SelectByKey: not found")
 	}
 
-	productResult := &datamodels.Product{}
+	productResult := &models.Product{}
 	common.DataToStructByTagSql(result, productResult)
 	return productResult, nil
 }
 
 //获取所有商品
-func (p *ProductManager) SelectAll() (productArray []*datamodels.Product, errProduct error) {
+func (p *ProductManager) SelectAll() (productArray []*models.Product, errProduct error) {
 	//1.判断连接是否存在
 	p.Conn()
 
@@ -135,13 +150,13 @@ func (p *ProductManager) SelectAll() (productArray []*datamodels.Product, errPro
 	}
 	defer rows.Close()
 
-	result := common.GetResultRows(rows)
+	result := db.GetResultRows(rows)
 	if len(result) == 0 {
 		return nil, errors.New("product_repository#SelectAll: not found")
 	}
 
 	for _, v := range result {
-		product := &datamodels.Product{}
+		product := &models.Product{}
 		common.DataToStructByTagSql(v, product)
 		productArray = append(productArray, product)
 	}
@@ -160,4 +175,25 @@ func (p *ProductManager) SubProductNum(productID int64) error {
 	defer stmt.Close()
 	_, err = stmt.Exec()
 	return err
+}
+
+func (p *ProductManager) AddSecProduct(productID int64, productNum int64, duration float64) error {
+	p.RedisConn()
+
+	ctx := context.Background()
+	idString := strconv.FormatInt(productID, 10)
+	numString := strconv.FormatInt(productNum, 10)
+	countDown := int(duration*3600)
+	_, err := p.redisPool.Set(ctx, idString, numString, 0).Result()
+	if err != nil {
+		return errors.Wrap(err,"product_repository#AddSecProduct: set secKill product failed.")
+	}
+
+	var t time.Duration
+	t = time.Duration(countDown)
+	ok, err := p.redisPool.ExpireAt(ctx, idString, time.Now().Add(t*time.Second)).Result()
+	if !ok {
+		log.Println("failed set redis")
+	}
+	return nil
 }

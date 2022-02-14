@@ -1,4 +1,4 @@
-package datamodels
+package models
 
 type Product struct {
 	ID           int64  `json:"id" sql:"ID" secKillSystem:"ID"`
