@@ -29,9 +29,9 @@ func init() {
 	}
 }
 
-func NewRedisConn() *RedisPool {
+func NewLimitConn(ctx context.Context) *RedisPool {
 	return &RedisPool{
 		Rdb: rdb,
-		Ctx: context.Background(),
+		Ctx: ctx,
 	}
 }

@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"seckill/common"
-	"seckill/common/encrypt"
+	"seckill/common/loadBalance"
 	"seckill/common/rabbitmq"
 	"seckill/models"
+	"seckill/validate/auth"
+	"seckill/validate/tokenLimit"
 	"strconv"
 	"sync"
 )
@@ -28,7 +30,7 @@ var (
 	// 验证服务器端口
 	port = "8083"
 
-	hashConsistent   *common.Consistent
+	hashConsistent   loadBalance.LoadBalance
 	rabbitMqValidate *RabbitMQ.RabbitMQ
 	accessControl    = &AccessControl{sourceArray: make(map[int]interface{})}
 )
@@ -152,53 +154,11 @@ func GetDataFromOtherMap(host string, r *http.Request) bool {
 	return false
 }
 
-// 统一验证拦截器，每个接口都需要提前验证
-func Auth(w http.ResponseWriter, r *http.Request) error {
-	err := CheckUserInfo(r)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// 身份校验函数
-func CheckUserInfo(r *http.Request) error {
-	// 1.获取uid cookie
-	uidCookie, err := r.Cookie("uid")
-	if err != nil {
-		return errors.New("uid got failed")
-	}
-
-	// 2.获取用户加密串
-	signCookie, err := r.Cookie("sign")
-	if err != nil {
-		return errors.New("sign got failed")
-	}
-
-	val, _ := url.QueryUnescape(signCookie.Value)
-	signByte, err := encrypt.DePwdCode(val)
-	if err != nil {
-		return errors.New("加密串已被串改")
-	}
-
-	if checkInfo(uidCookie.Value, string(signByte)) {
-		return nil
-	}
-	return errors.New("身份校验失败！")
-}
-
-func checkInfo(checkStr string, signStr string) bool {
-	if checkStr == signStr {
-		return true
-	}
-	return false
-}
-
 func CheckRight(w http.ResponseWriter, r *http.Request) {
 	right := accessControl.GetDistributedRight(r)
 	if !right {
 		w.Write([]byte("false"))
-		w.WriteHeader(501)
+		w.WriteHeader(502)
 		return
 	}
 	w.Write([]byte("true"))
@@ -227,6 +187,7 @@ func Check(w http.ResponseWriter, r *http.Request) {
 	right := accessControl.GetDistributedRight(r)
 	if right == false {
 		w.Write([]byte("false"))
+		return
 	}
 
 	// 2.获取数量控制权限，防止秒杀出现超卖
@@ -274,7 +235,7 @@ func Check(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// 采用一致性hash算法设置负载均衡器
-	hashConsistent = common.NewConsistent()
+	hashConsistent = loadBalance.LoadBalanceFactory(loadBalance.LbConsistent, 20)
 	for _, v := range hostArray {
 		hashConsistent.Add(v)
 	}
@@ -285,14 +246,20 @@ func main() {
 	}
 	fmt.Println(localIp)
 
+	// 初始化消息队列
 	rabbitMqValidate = RabbitMQ.NewRabbitMQSimple("secKillProduct")
 	defer rabbitMqValidate.Destory()
 
-	// 1.过滤器
+	// 1.初始化拦截器
 	filter := common.NewFilter()
-	// 注册拦截器
-	filter.RegisterFilterUri("/check", Auth)
-	filter.RegisterFilterUri("/checkRight", Auth)
+
+	// 注册拦截器验证用户是否登录
+	filter.RegisterFilterUri("/check", auth.Auth)
+	filter.RegisterFilterUri("/checkRight", auth.Auth)
+
+	// 注册拦截器验证请求是否通过了令牌桶算法的拦截
+	filter.RegisterFilterUri("/check", tokenLimit.LimitT)
+
 	// 2.启动服务
 	http.HandleFunc("/check", filter.Handle(Check))           //
 	http.HandleFunc("/checkRight", filter.Handle(CheckRight)) // 验证用户登录权限

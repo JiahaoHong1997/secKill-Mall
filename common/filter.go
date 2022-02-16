@@ -38,6 +38,7 @@ func (f *Filter) Handle(webHandle WebHandle) func(w http.ResponseWriter, r *http
 				// 执行拦截业务逻辑
 				err := handle(w, r)
 				if err != nil {
+					w.WriteHeader(502)
 					w.Write([]byte(err.Error()))
 					return
 				}
