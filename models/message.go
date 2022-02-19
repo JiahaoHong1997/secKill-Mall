@@ -13,3 +13,23 @@ func NewMessage(userId int64, productId int64) *Message {
 		UserID:    userId,
 	}
 }
+
+type MessageCache struct {
+	ID           int64
+	ProductName  string
+	ProductNum   int64
+	ProductImage string
+	ProductUrl   string
+	IsDelete     bool
+}
+
+func NewMessageCache(id int64, name string, num int64, image string, url string, isDelete bool) *MessageCache {
+	return &MessageCache{
+		ID:           id,
+		ProductName:  name,
+		ProductNum:   num,
+		ProductImage: image,
+		ProductUrl:   url,
+		IsDelete:     isDelete,
+	}
+}

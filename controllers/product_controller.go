@@ -19,15 +19,18 @@ var productService service.IProductService
 var orderRepository dao.IOrderRepository
 var orderService service.IOrderService
 var rabbitMq *RabbitMQ.RabbitMQ
+var cacheMq *RabbitMQ.RabbitMQ
 
 func init() {
 	db := db2.DBConn()
 	rdb := db2.NewRedisConn()
-	productRepository = dao.NewProductManager("product", db, rdb)
+	cache := db2.NewCachePool()
+	productRepository = dao.NewProductManager("product", db, rdb, cache)
 	productService = service.NewProductService(productRepository)
 	orderRepository = dao.NewOrderManagerRepository("order", db)
 	orderService = service.NewOrderService(orderRepository)
 	rabbitMq = RabbitMQ.NewRabbitMQSimple("secKillProduct")
+	cacheMq = RabbitMQ.NewRabbitMQSimple("cacheMq")
 }
 
 // 秒杀页面
@@ -37,10 +40,19 @@ func GetDetail(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 	}
-	product, err := productService.GetProductByID(int64(productID))
+	product, err, cached := productService.GetProductByID(int64(productID))
 	if err != nil {
 		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
 		log.Printf("stack trace: %+v", err)
+	}
+	if !cached {
+		cacheMessage := models.NewMessageCache(product.ID, product.ProductName, product.ProductNum, product.ProductImage, product.ProductUrl, false)
+		message, _ := json.Marshal(cacheMessage)
+		err = cacheMq.PublishSimple(string(message))
+		if err != nil {
+			log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
+			log.Printf("stack trace:%+v", err)
+		}
 	}
 	c.HTML(http.StatusOK, "user_view.tmpl", gin.H{
 		"product": product,
@@ -75,47 +87,4 @@ func GetOrder(c *gin.Context) {
 		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
 	}
 	c.String(200, "true")
-
-	//product, err := productService.GetProductByID(int64(productID))
-	//if err != nil {
-	//	log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
-	//	log.Printf("stack trace: %+v", err)
-	//}
-
-	//var orderID int64
-	//showMessage := "抢购失败"
-	//// 判断商品数量是否满足需求
-	//// TODO:高并发需求还未实现
-	//if product.ProductNum > 0 {
-	//	// 扣除商品数量
-	//	product.ProductNum -= 1
-	//	err = productService.UpdateProduct(product)
-	//	if err != nil {
-	//		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
-	//		log.Printf("stack trace: %+v", err)
-	//	}
-	//
-	//	// 创建订单
-	//	userID, err := strconv.Atoi(userString)
-	//	if err != nil {
-	//		log.Println("string false")
-	//	}
-	//	order := &models.Order{
-	//		UserId:      int64(userID),
-	//		ProductId:   int64(productID),
-	//		OrderStatus: models.OrderSuccess,
-	//	}
-	//
-	//	// 新建订单
-	//	orderID, err = orderService.InsertOrder(order)
-	//	if err != nil {
-	//		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
-	//		log.Printf("stack trace: %+v", err)
-	//	}
-	//	showMessage = "抢购成功"
-	//}
-	//c.HTML(http.StatusOK, "result.tmpl", gin.H{
-	//	"showMessage": showMessage,
-	//	"orderID":     orderID,
-	//})
 }
