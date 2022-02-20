@@ -4,10 +4,10 @@ go 1.17
 
 require (
 	github.com/gin-gonic/gin v1.7.7
-	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/pkg/errors v0.9.1
+	github.com/spaolacci/murmur3 v1.1.0
 	github.com/streadway/amqp v1.0.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c

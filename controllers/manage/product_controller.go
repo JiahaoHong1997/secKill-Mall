@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"seckill/common"
+	bloom2 "seckill/common/bloom"
 	RabbitMQ "seckill/common/rabbitmq"
 	"seckill/dao"
 	db2 "seckill/dao/db"
@@ -16,9 +17,12 @@ import (
 	"strconv"
 )
 
-var productRepository dao.IProduct
-var productService service.IProductService
-var cacheMq *RabbitMQ.RabbitMQ
+var (
+	productRepository dao.IProduct
+	productService    service.IProductService
+	cacheMq           *RabbitMQ.RabbitMQ
+	bloom             *bloom2.Bloom
+)
 
 func init() { // 实例化
 	db := db2.DBConn()
@@ -27,6 +31,7 @@ func init() { // 实例化
 	productRepository = dao.NewProductManager("product", db, rdb, cache)
 	productService = service.NewProductService(productRepository)
 	cacheMq = RabbitMQ.NewRabbitMQSimple("cacheMq")
+	bloom = bloom2.NewBloom(cache)
 }
 
 func GetAllProduct(c *gin.Context) {
@@ -47,6 +52,13 @@ func ManageProductByID(c *gin.Context) {
 	if err != nil {
 		log.Printf("product ManageProductByID: Failed to transform to int type: %s", err)
 	}
+
+	if !bloom.Exist(idString) {
+		c.Writer.WriteHeader(http.StatusNotFound)
+		c.Writer.Write([]byte("no such product"))
+		return
+	}
+
 	product, err, cached := productService.GetProductByID(id)
 	if err != nil {
 		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
@@ -109,6 +121,8 @@ func AddProductInfo(c *gin.Context) {
 		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))
 		log.Printf("stack trace:%+v", err)
 	}
+	idString := strconv.FormatInt(id, 10)
+	bloom.Add(idString)
 
 	// 更新缓存：将查询到的结构体送到消息队列中
 	cacheMessage := models.NewMessageCache(id, product.ProductName, product.ProductNum, product.ProductImage, product.ProductUrl, false)
@@ -153,6 +167,13 @@ func GetProductAddSec(c *gin.Context) {
 	if err != nil {
 		log.Printf("product ManageProductByID: Failed to transform to int type: %s", err)
 	}
+
+	if !bloom.Exist(idString) {
+		c.Writer.WriteHeader(http.StatusNotFound)
+		c.Writer.Write([]byte("no such product"))
+		return
+	}
+
 	product, err, cached := productService.GetProductByID(id)
 	if err != nil {
 		log.Printf("original error:%T %v\n", errors.Cause(err), errors.Cause(err))

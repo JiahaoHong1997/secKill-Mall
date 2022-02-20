@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"github.com/pkg/errors"
+	"github.com/spaolacci/murmur3"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -110,4 +111,9 @@ func DePwdCode(pwd string) ([]byte, error) {
 	}
 	//执行AES解密
 	return aesDeCrypt(pwdByte, PwdKey)
+}
+
+// Hash returns the hash value of data.
+func Hash(data []byte) uint64 {
+	return murmur3.Sum64(data)
 }

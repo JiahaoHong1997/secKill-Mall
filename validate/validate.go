@@ -9,7 +9,9 @@ import (
 	"net/url"
 	"seckill/common"
 	"seckill/common/loadBalance"
+	"seckill/common/lock"
 	"seckill/common/rabbitmq"
+	"seckill/dao/db"
 	"seckill/models"
 	"seckill/validate/auth"
 	"seckill/validate/proxy"
@@ -107,9 +109,22 @@ func CheckRight(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func Check(w http.ResponseWriter, r *http.Request) {
+func publishMessage(userID, productID int64) error {
+	message := models.NewMessage(userID, productID)
+	byteMessage, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	err = rabbitMqValidate.PublishSimple(string(byteMessage))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CheckLocal(w http.ResponseWriter, r *http.Request) {
 	// 执行正常业务逻辑
-	fmt.Println("执行check")
 	queryForm, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil || len(queryForm["productID"]) <= 0 {
 		w.Write([]byte("false"))
@@ -154,25 +169,73 @@ func Check(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			message := models.NewMessage(userID, productID)
-			byteMessage, err := json.Marshal(message)
+			err = publishMessage(userID, productID)
 			if err != nil {
 				w.Write([]byte("false"))
 				return
 			}
-
 			// 生产消息
-			err = rabbitMqValidate.PublishSimple(string(byteMessage))
-			if err != nil {
-				w.Write([]byte("false"))
-				return
-			}
 			w.Write([]byte("true"))
 			return
 		}
 	}
 	w.Write([]byte("false"))
 	return
+}
+
+func CheckCache(w http.ResponseWriter, r *http.Request) {
+	// 执行正常业务逻辑
+	queryForm, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil || len(queryForm["productID"]) <= 0 {
+		w.Write([]byte("false"))
+		return
+	}
+	productString := queryForm["productID"][0]
+	fmt.Println(productString)
+
+	// 获取用户cookie
+	userCookie, err := r.Cookie("uid")
+	if err != nil {
+		w.Write([]byte("false"))
+		return
+	}
+
+	// 1.分布式权限认证
+	right := accessControl.GetDistributedRight(r)
+	if right == false {
+		w.Write([]byte("false"))
+		return
+	}
+
+	lockPool := lock.NewRedisPool()
+	proPool := db.NewCachePool()
+
+	lockPool.Lock()
+	defer lockPool.UnLock()
+	num, err := proPool.HGet(lockPool.Ctx, productString, "productInventory").Result()
+	if err != nil {
+		w.Write([]byte("cannot get product nums"))
+		return
+	}
+	proNum, _ := strconv.ParseInt(num,10,64)
+	if proNum > 0 {
+		_, err := proPool.HIncrBy(lockPool.Ctx, productString, "productInventory",-1).Result()
+		if err != nil {
+			w.Write([]byte("decr product failed"))
+			return
+		}
+		productID, _ := strconv.ParseInt(productString, 10, 64)
+		userID, _ := strconv.ParseInt(userCookie.Value, 10, 64)
+		err = publishMessage(userID, productID)
+		if err != nil {
+			_, err = proPool.HIncrBy(lockPool.Ctx, productString, "productInventory", 1).Result()
+			w.Write([]byte("generate order failed"))
+			return
+		}
+	} else {
+		w.Write([]byte("no more product"))
+		return
+	}
 }
 
 func main() {
@@ -196,14 +259,17 @@ func main() {
 	filter := common.NewFilter()
 
 	// 注册拦截器验证用户是否登录
-	filter.RegisterFilterUri("/check", auth.Auth)
+	filter.RegisterFilterUri("/checkLocal", auth.Auth)
+	filter.RegisterFilterUri("/checkCache", auth.Auth)
 	filter.RegisterFilterUri("/checkRight", auth.Auth)
 
 	// 注册拦截器验证请求是否通过了令牌桶算法的拦截
-	filter.RegisterFilterUri("/check", tokenLimit.LimitT)
+	filter.RegisterFilterUri("/checkLocal", tokenLimit.LimitT)
+	filter.RegisterFilterUri("/checkCache", tokenLimit.LimitT)
 
 	// 2.启动服务
-	http.HandleFunc("/check", filter.Handle(Check))           //
+	http.HandleFunc("/checkLocal", filter.Handle(CheckLocal))           // 超热点商品在本地内存进行数量控制
+	http.HandleFunc("/checkCache", filter.Handle(CheckCache))		   // 直接在缓存层进行数量控制，成功下单后再修改数据库
 	http.HandleFunc("/checkRight", filter.Handle(CheckRight)) // 验证用户登录权限
 
 	http.ListenAndServe(":8083", nil)

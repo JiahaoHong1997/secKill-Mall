@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"log"
 	"net/http"
+	bloom2 "seckill/common/bloom"
 	"seckill/common/rabbitmq"
 	"seckill/dao"
 	db2 "seckill/dao/db"
@@ -14,12 +15,13 @@ import (
 	"strconv"
 )
 
-var productRepository dao.IProduct
-var productService service.IProductService
-var orderRepository dao.IOrderRepository
-var orderService service.IOrderService
-var rabbitMq *RabbitMQ.RabbitMQ
-var cacheMq *RabbitMQ.RabbitMQ
+var (
+	productRepository dao.IProduct
+	productService service.IProductService
+	rabbitMq *RabbitMQ.RabbitMQ
+	cacheMq *RabbitMQ.RabbitMQ
+	bloom *bloom2.Bloom
+)
 
 func init() {
 	db := db2.DBConn()
@@ -27,10 +29,9 @@ func init() {
 	cache := db2.NewCachePool()
 	productRepository = dao.NewProductManager("product", db, rdb, cache)
 	productService = service.NewProductService(productRepository)
-	orderRepository = dao.NewOrderManagerRepository("order", db)
-	orderService = service.NewOrderService(orderRepository)
 	rabbitMq = RabbitMQ.NewRabbitMQSimple("secKillProduct")
 	cacheMq = RabbitMQ.NewRabbitMQSimple("cacheMq")
+	bloom = bloom2.NewBloom(cache)
 }
 
 // 秒杀页面
@@ -40,6 +41,12 @@ func GetDetail(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 	}
+	if !bloom.Exist(productString) {
+		c.Writer.WriteHeader(http.StatusNotFound)
+		c.Writer.Write([]byte("no such product"))
+		return
+	}
+
 	product, err, cached := productService.GetProductByID(int64(productID))
 	if err != nil {
 		log.Printf("origin error: %T, %v", errors.Cause(err), errors.Cause(err))
