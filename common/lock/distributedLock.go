@@ -67,25 +67,30 @@ func GetCurrentGoroutineId() (int, error) {
 	return goId, nil
 }
 
-func (r *RedisPool) Lock() {
+func (r *RedisPool) Lock(ctx context.Context) bool {
 	var resp *redis.BoolCmd
 	for {
-		goId, err := GetCurrentGoroutineId()
-		if err != nil {
-			log.Printf("original error: %T, %v", errors.Cause(err), errors.Cause(err))
-			return
-		}
-		resp = r.Rdb.SetNX(r.Ctx, r.LockKey, goId, 10*time.Second)
-		lockSuccess, err := resp.Result()
-		if err == nil && lockSuccess {
-			//fmt.Println("lock success!", goId)
-			//抢锁成功，开启看门狗 并跳出，否则失败继续自旋
-			go r.WatchDog(goId)
-			return
-		} else {
-			//log.Println("lock failed!", err)
-		}
 
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+			goId, err := GetCurrentGoroutineId()
+			if err != nil {
+				log.Printf("original error: %T, %v", errors.Cause(err), errors.Cause(err))
+				return false
+			}
+			resp = r.Rdb.SetNX(r.Ctx, r.LockKey, goId, 10*time.Second)
+			lockSuccess, err := resp.Result()
+			if err == nil && lockSuccess {
+				//fmt.Println("lock success!", goId)
+				//抢锁成功，开启看门狗 并跳出，否则失败继续自旋
+				go r.WatchDog(goId)
+				return true
+			} else {
+				//log.Println("lock failed!", err)
+			}
+		}
 		// 抢锁失败，继续自旋
 	}
 }

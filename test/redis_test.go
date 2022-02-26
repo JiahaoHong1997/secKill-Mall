@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"seckill/common/lock"
 	"seckill/dao/db"
@@ -37,7 +38,12 @@ func TestUnLock(t *testing.T) {
 		wg.Add(1)
 
 		go func() {
-			redisPool.Lock()
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			if !redisPool.Lock(ctx) {
+				t.Logf("overtime")
+				return
+			}
 			goId, _ := lock.GetCurrentGoroutineId()
 			fmt.Println("GoroutineId: ", goId)
 			count++
@@ -71,7 +77,12 @@ func BenchmarkConcurrent(b *testing.B) {
 
 	go func() {
 		for {
-			redisPool.Lock()
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			if !redisPool.Lock(ctx) {
+				b.Logf("overtime")
+				return
+			}
 
 			m1 := v.Load().(Map)
 			m2 := make(Map)
@@ -150,8 +161,12 @@ func TestSecKill(t *testing.T) {
 	for i:=0; i<1000; i++ {
 		wg.Add(1)
 		go func() {
-
-			lockRdb.Lock()
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			if !lockRdb.Lock(ctx) {
+				t.Logf("overtime")
+				return
+			}
 			num, err := proRdb.Get(lockRdb.Ctx,"1").Result()
 			if err != nil {
 				t.Logf("cannot get product nums")

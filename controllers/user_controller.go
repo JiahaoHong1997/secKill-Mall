@@ -90,5 +90,5 @@ func PostLogin(c *gin.Context) {
 	}
 	c.SetCookie("sign", uidString, 30*60, "/", "127.0.0.1", false, true)
 
-	c.Redirect(http.StatusMovedPermanently, "/product/")
+	c.Redirect(http.StatusMovedPermanently, "/manage/product/all")
 }

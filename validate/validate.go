@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
@@ -18,6 +19,7 @@ import (
 	"seckill/validate/tokenLimit"
 	"strconv"
 	"sync"
+	"time"
 )
 
 var (
@@ -185,6 +187,9 @@ func CheckLocal(w http.ResponseWriter, r *http.Request) {
 
 func CheckCache(w http.ResponseWriter, r *http.Request) {
 	// 执行正常业务逻辑
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
 	queryForm, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil || len(queryForm["productID"]) <= 0 {
 		w.Write([]byte("false"))
@@ -210,7 +215,11 @@ func CheckCache(w http.ResponseWriter, r *http.Request) {
 	lockPool := lock.NewRedisPool()
 	proPool := db.NewCachePool()
 
-	lockPool.Lock()
+	if !lockPool.Lock(ctx) {
+		w.Write([]byte("overtime"))
+		w.WriteHeader(http.StatusGatewayTimeout)
+		return
+	}
 	defer lockPool.UnLock()
 	num, err := proPool.HGet(lockPool.Ctx, productString, "productInventory").Result()
 	if err != nil {
