@@ -128,12 +128,12 @@ func publishMessage(userID, productID int64) error {
 func CheckLocal(w http.ResponseWriter, r *http.Request) {
 	// 执行正常业务逻辑
 	queryForm, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil || len(queryForm["productID"]) <= 0 {
+	if err != nil || len(queryForm["productID"]) <= 0 || len(queryForm["requestNum"]) <= 0 {
 		w.Write([]byte("false"))
 		return
 	}
 	productString := queryForm["productID"][0]
-	fmt.Println(productString)
+	requestNumString := queryForm["requestNum"][0]
 
 	// 获取用户cookie
 	userCookie, err := r.Cookie("uid")
@@ -150,7 +150,7 @@ func CheckLocal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2.获取数量控制权限，防止秒杀出现超卖
-	hostUrl := "http://" + GetOneIp + ":" + GetOnePort + "/getOne"
+	hostUrl := "http://" + GetOneIp + ":" + GetOnePort + "/getProduct?productID=" + productString + "&requestNum=" + requestNumString
 	responseValidate, validateBody, err := proxy.GetCurl(hostUrl, r)
 	if err != nil {
 		w.Write([]byte("false"))
@@ -196,7 +196,6 @@ func CheckCache(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	productString := queryForm["productID"][0]
-	fmt.Println(productString)
 
 	// 获取用户cookie
 	userCookie, err := r.Cookie("uid")
@@ -226,9 +225,9 @@ func CheckCache(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("cannot get product nums"))
 		return
 	}
-	proNum, _ := strconv.ParseInt(num,10,64)
+	proNum, _ := strconv.ParseInt(num, 10, 64)
 	if proNum > 0 {
-		_, err := proPool.HIncrBy(lockPool.Ctx, productString, "productInventory",-1).Result()
+		_, err := proPool.HIncrBy(lockPool.Ctx, productString, "productInventory", -1).Result()
 		if err != nil {
 			w.Write([]byte("decr product failed"))
 			return
@@ -277,8 +276,8 @@ func main() {
 	filter.RegisterFilterUri("/checkCache", tokenLimit.LimitT)
 
 	// 2.启动服务
-	http.HandleFunc("/checkLocal", filter.Handle(CheckLocal))           // 超热点商品在本地内存进行数量控制
-	http.HandleFunc("/checkCache", filter.Handle(CheckCache))		   // 直接在缓存层进行数量控制，成功下单后再修改数据库
+	http.HandleFunc("/checkLocal", filter.Handle(CheckLocal)) // 超热点商品在本地内存进行数量控制
+	http.HandleFunc("/checkCache", filter.Handle(CheckCache)) // 直接在缓存层进行数量控制，成功下单后再修改数据库
 	http.HandleFunc("/checkRight", filter.Handle(CheckRight)) // 验证用户登录权限
 
 	http.ListenAndServe(":8083", nil)
